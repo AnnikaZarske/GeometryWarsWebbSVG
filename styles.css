@@ -1,0 +1,38 @@
+body{
+    background-color: rgb(0, 0, 102);
+}
+
+.scoreText{
+    display: inline-block;
+    z-index: 10;
+    position: relative;
+    font-family: monospace;
+    color:greenyellow;
+    font-size: 40px;
+    left: 10px;
+    top: -40px;
+}
+
+#playField {
+    border: 3px solid #FFCCE5;
+    margin: 10px;
+    position: absolute;
+    resize: horizontal;
+    overflow: hidden;
+    width: 1200px;
+    height: 600px;
+    z-index: -1;
+}
+
+#shootingDirArrow{
+    position: absolute;
+    transform-box: fill-box;
+    transform-origin: bottom;
+    
+    touch-action: none;
+}
+
+.bullet{
+    color: red;
+    fill: red;
+}

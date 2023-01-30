@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <link rel="stylesheet" href="styles.css">
+        <script src="vector.js"></script>
+        <script src="https://d3js.org/d3.v6.min.js"></script>
+        <title>Document</title>
+    </head>
+    <body>
+        <svg id="playField"  viewbox="0 0 1200 600">
+            <defs>
+                <svg>
+                    <g id="player" width="50" height="50">
+                        <polygon 
+                            fill="none" 
+                            stroke="rgb(243, 227, 202)" 
+                            stroke-width="3" 
+                            points="25,0 50,20 35,50 40,25 25,15 10,25 15,50 0,20">
+                        </polygon> 
+                    </g>
+                </svg>    
+            </defs>
+            <defs>
+                <svg>
+                    <g id="shootingDirArrow" width="24" height="12" transform="translate(200,200)">
+                        <polygon 
+                            stroke-linejoin="round"
+                            fill="none" 
+                            stroke="rgb(243, 227, 202)" 
+                            stroke-width="3" 
+                            points="0,12 12,0 24,12">
+                        </polygon> 
+                    </g>
+                </svg>    
+            </defs>
+            <defs>
+                <svg>
+                    <g id="bullet" width="5" height="5" transform="translate(300,300)">
+                        <circle 
+                        r="2.5" 
+                        fill="rgb(51, 255, 153)">
+                        </circle>
+                    </g>
+                </svg>    
+            </defs>
+            <defs>
+                <svg>
+                    <g id="enemy_windmill" width="25" height="25">
+                        <polygon 
+                            stroke-linejoin="round"
+                            fill="none" 
+                            stroke="rgb(255,105,180)" 
+                            stroke-width="3" 
+                            points="31,0 16,10 34,38 20,46">
+                        </polygon> 
+                        <polygon 
+                            stroke-linejoin="round"
+                            fill="none" 
+                            stroke="rgb(255,105,180)" 
+                            stroke-width="3" 
+                            points="2,19 11,34 39,16 49,32">
+                        </polygon> 
+                    </g>
+                </svg>    
+            </defs>
+
+            <svg id="bullets">
+
+            </svg>
+
+            <svg id="enemies">
+                
+            </svg>
+            
+            <use href="#border"/>
+            <use href="#player" /> 
+            <use href="#shootingDirArrow"/>        
+        </svg>
+
+        <p class="scoreText">Score: <b id="scoreText">000</b></p>
+
+        <script>
+            class Point {
+                constructor(x , y){
+                    this.x = x;
+                    this.y = y;
+                }
+            }
+
+            var score = 0;
+            var playerLife = 1;
+
+            var xKey = 0;
+            var yKey = 0;
+            var speed = 5;
+
+            var screenTopLeft = new Point(5, 5);
+            var screenSize = new Point(1200, 600);
+
+            var playField = document.getElementById("playField");
+
+            var player = document.getElementById("player");
+            var playerRect = player.getBoundingClientRect();
+            var playerSize = new Point(playerRect.width, playerRect.height);
+
+            var pointer = document.getElementById("shootingDirArrow");
+            var pointerRect = pointer.getBoundingClientRect();
+            var pointerSize = new Point(pointerRect.width, pointerRect.height);
+            var pointerDist = 50;
+
+            var mousePos = new Point(0, 0);
+            
+            const bulletArr = [];
+            var bulletCounter = 0;
+            var pointerPositonForBullet = new Point(0, 0);
+            var mouseVector = new Point(0,0);
+
+            var enemyArr = [];
+            var enemyCounter = 0;
+            const enemyToDelete = [];
+
+            function DeleterFromArray(){
+                var bulletToDelete = bulletArr[0];
+                d3.select("#" + bulletToDelete).remove();
+
+                bulletArr.shift(); 
+            }
+
+            function RemoveBullets(time){
+                setTimeout(function() {
+                    DeleterFromArray()
+                }, time);
+            }
+
+            function ConstructBullet(xPos, yPos){
+                bulletCounter += 1;
+                var bullets = d3.select("#bullets");
+
+                var bullet = bullets.append("g")
+                .attr("width", 10)
+                .attr("height", 10)
+                .attr("id", "bullet_" + [bulletCounter])
+                .append("circle")
+                .attr("transform", "translate(" + [xPos, yPos] + ")")
+                .attr("r", 5)
+                .attr("fill", "rgb(51, 255, 153)")
+
+                bullet.transition()
+                    .duration(3000)
+                    .ease(d3.easeLinear)
+                    .attrTween("transform", function(){
+                        return d3.interpolateString( `translate(` + xPos + `,` + yPos + `)`,
+                                                     `translate(` + (xPos + mouseVector.x) + `,` + (yPos + mouseVector.y) + `)` );
+                    });
+
+                bulletArr.push("bullet_" + [bulletCounter]);
+            }
+
+            function SpawnBullet(){
+                ConstructBullet(pointerPositonForBullet.x, pointerPositonForBullet.y);
+                RemoveBullets(4000);
+            }
+            
+            function ConstructEnemy(){
+                enemyCounter += 1;
+                var xPos = (500*Math.random());
+                var yPos = (500*Math.random());
+
+                var enemies = d3.select("#enemies")
+
+                var enemy = enemies.append("use")
+                              .attr("href", "#enemy_windmill")
+                              .attr("transform", "translate(" + [xPos, yPos] + ")")
+                              .attr("id", "enemy_" + [enemyCounter]);
+              
+                enemyArr.push("enemy_" + [enemyCounter]);
+
+                enemy.transition()
+                .duration(2000)
+                .ease(d3.easeLinear)
+                .attrTween("transform", function(){
+                    return d3.interpolateString( `translate(` + xPos + `,` + yPos + `)`,
+                                                 `translate(` + (1000*Math.random()) + `,` + (500*Math.random()) + `)` );
+                });
+            }
+
+            function SpawnEnemy(){
+                var random = 100*Math.random();
+                if(random < 75){
+                    ConstructEnemy();
+                }
+            }
+
+            function searchForEnemy(){
+                for(var i = 0; i < enemyArr.length; i++){
+                    const enemy = document.querySelector("#" + enemyArr[i]);
+                    const enemyBox = enemy.getBoundingClientRect();
+                    const d3Enemy = d3.select("#" + enemyArr[i]);
+            
+                    d3Enemy.transition()
+                    .duration(2000)
+                    .ease(d3.easeLinear)
+                    .attrTween("transform", function(){
+                        return d3.interpolateString( `translate(` + (enemyBox.x - 22) + `,` + (enemyBox.y - 22) + `)`,
+                                                    `translate(` + (1000*Math.random()) + `,` + (500*Math.random()) + `)` );
+                    });
+                }
+            }
+
+            function intersectRect(r1, r2) {
+                var r1 = r1.getBoundingClientRect();
+                var r2 = r2.getBoundingClientRect();
+
+                return !(r2.left > r1.right || 
+                        r2.right < r1.left || 
+                        r2.top > r1.bottom ||
+                        r2.bottom < r1.top);
+            }
+
+            function PlayerDie(){
+                for(var i = 0; i < enemyArr.length; i++){
+                    const enemy = document.querySelector("#" + enemyArr[i]);
+            
+                    if(intersectRect(enemy, player)){
+                        playerLife -= 1;
+                        score -= 500;
+                        updateScore();
+                        if(playerLife <= 0){
+                            location.reload();
+                        }
+                    }
+                }
+            }
+
+            function EnemyDie(){
+                var removeDeadEnemies = false;
+                for(var i = 0; i < bulletArr.length; i++){
+                    for(var j = 0; j < enemyArr.length; j++){
+                        const bullet = document.querySelector("#" + bulletArr[i]);
+                        const enemy = document.querySelector("#" + enemyArr[j]);
+                        if(intersectRect(bullet, enemy)){
+                            var deadEnemy = enemyArr[j];
+                            enemyToDelete.push(deadEnemy);
+                            score += 1000;
+                            updateScore();
+                            removeDeadEnemies = true;
+                        }
+                    }
+                }
+                if(removeDeadEnemies){
+                    for(var i = 0; i < enemyToDelete.length; i++){
+                        const enemyToKill = enemyToDelete[i];
+                        for( var j = 0; j < enemyArr.length; j++){
+                            enemyArr = enemyArr.filter(e => e !== enemyToKill);
+                        }
+                        d3.select("#" + enemyToKill).remove();
+                        enemyToDelete.splice(0, enemyToDelete.length);
+                        removeDeadEnemies = false;
+                    }
+                }
+            }
+
+            window.addEventListener("mousemove", function(e){
+                mousePos.x = e.clientX;
+                mousePos.y = e.clientY;
+            })
+
+            window.addEventListener('keydown', (event) =>{
+                switch(event.keyCode){
+                    case 65: xKey = -speed; break; //Left A
+                    case 68: xKey = speed; break; //Right D
+                    case 87: yKey = -speed; break; //Up W
+                    case 83: yKey = speed; break; //Down S
+                }
+            });
+
+            window.addEventListener('keyup', (event) =>{
+                switch(event.keyCode){
+                    case 65: xKey = 0; break;
+                    case 68: xKey = 0; break;
+                    case 87: yKey = 0; break;
+                    case 83: yKey = 0; break;
+                }
+            });
+
+            function updateGame(){
+                var playerPos = new Point(screenSize.x/2 - playerSize.x/2, screenSize.y/2  - playerSize.y/2);
+                var pointerPos  = new Point(screenSize.x/2 - pointerSize.x/2, screenSize.y/2 - pointerSize.y/2);    
+                
+                function update(time) {
+                    if (xKey < 0){
+                        if (playerPos.x > screenTopLeft.x)
+                            playerPos.x = playerPos.x + xKey;
+                        if (playerPos.x <= screenTopLeft.x)
+                            playerPos.x = screenTopLeft.x
+                    }
+
+                    if (xKey > 0){
+                        if (playerPos.x < screenSize.x - playerSize.x)
+                            playerPos.x = playerPos.x + xKey;
+                        if (playerPos.x >= screenSize.x - playerSize.x)
+                            playerPos.x = screenSize.x - playerSize.x;
+                    }
+
+                    if (yKey < 0){
+                        if (playerPos.y > screenTopLeft.y)
+                            playerPos.y = playerPos.y + yKey;
+                        if (playerPos.y <= screenTopLeft.y) 
+                            playerPos.y = screenTopLeft.y;
+                    }
+    
+                    if (yKey > 0){
+                        if (playerPos.y < screenSize.y - playerSize.y)
+                            playerPos.y = playerPos.y + yKey;
+                        if (playerPos.y >= screenSize.y - playerSize.y)
+                            playerPos.y = screenSize.y - playerSize.y;
+                    }
+    
+                    player.setAttribute("transform", "translate(" + [playerPos.x, playerPos.y] + ")");
+
+                    pointerPos.x = playerPos.x + playerSize.x/2 - pointerSize.x/2;
+                    pointerPos.y = playerPos.y + playerSize.y/2 - pointerSize.y/2;
+
+                    var radians = Math.atan2(mousePos.x - (playerPos.x + playerSize.x/2), 
+                                            mousePos.y - (playerPos.y + playerSize.y/2));
+
+                    var degree = (radians * (180 / Math.PI) * -1) + 180;
+
+                    var playerV = new Vector(playerPos.x + playerSize.x/2, playerPos.y + playerSize.y/2);
+                    var mouseV = new Vector(mousePos.x, mousePos.y);
+                    var diffV = mouseV.subtract(playerV);
+                    var diffVNorm = diffV.normalize();
+                    var viewPointerPos = diffVNorm.scaleBy(pointerDist); 
+
+                    pointer.setAttribute("transform", "translate(" + [pointerPos.x, pointerPos.y] + ")"  
+                                                    + "translate(" + [viewPointerPos.components[0], viewPointerPos.components[1]] + ")" 
+                                                    + "rotate(" + [degree] + ")");
+                    
+                    pointerPositonForBullet.x = playerPos.x + playerSize.x/2;
+                    pointerPositonForBullet.y = playerPos.y + playerSize.y/2;
+
+                    var shootDest = diffVNorm.scaleBy(1200); 
+                    mouseVector.x = shootDest.components[0];
+                    mouseVector.y = shootDest.components[1];
+
+                    EnemyDie();
+                    PlayerDie();
+                    requestAnimationFrame(update);    
+                }
+
+                requestAnimationFrame(update); 
+            };
+
+            let interalIDBullet;
+            function spawnBulletTimer() {
+                intervalIDBullet = setInterval(SpawnBullet, 200);
+            }
+            spawnBulletTimer();
+
+            let interalIDEnemy;
+            function spawnEnemyTimer(){
+                interalIDEnemy = setInterval(SpawnEnemy, 500);
+            }
+            spawnEnemyTimer();
+
+            let interalIDEnemyMove;
+            function moveEnemyTimer(){
+                interalIDEnemyMove = setInterval(searchForEnemy, 1800);
+            }
+            moveEnemyTimer();            
+
+            function updateScore(){
+                document.getElementById('scoreText').innerHTML = score;
+            }
+            ConstructEnemy()
+            
+            updateGame();    
+        </script>
+    </body>
+</html>
